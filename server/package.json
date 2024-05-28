@@ -5,14 +5,16 @@
   "license": "MIT",
   "type": "module",
   "scripts": {
-    "dev:server": "concurrently \"json-server --watch ./json-server/messages.json -p 4001\" \"nodemon --watch './**/*.ts' --exec tsx index.ts\""
+    "dev:server": "nodemon --watch './**/*.ts' --exec tsx index.ts\""
   },
   "dependencies": {
     "concurrently": "^8.2.2",
     "cors": "^2.8.5",
     "express": "^4.19.2",
     "express-ws": "^5.0.2",
-    "json-server": "^1.0.0-beta.0"
+    "http": "^0.0.1-security",
+    "json-server": "^1.0.0-beta.0",
+    "socket.io": "^4.7.5"
   },
   "devDependencies": {
     "@types/cors": "^2.8.17",

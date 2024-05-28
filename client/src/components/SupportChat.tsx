@@ -1,33 +1,42 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Message, Role } from '../types/Message';
+import { IMessage, Role } from '../types/Message';
 import { MessageItem } from './MessageItem';
 
-export function SupportChat({ role }: { role: Role }) {
-  const [messages, setMessages] = useState<Message[]>([]);
-  const [value, setValue] = useState('');
+export function SupportChat({ role, chatId }: { role: Role; chatId: string }) {
+  const [messages, setMessages] = useState<IMessage[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [value, setValue] = useState('');
   const socket = useRef<WebSocket>();
   const ref = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    setIsLoading(true);
-    fetch('http://localhost:4000/messages')
-      .then<Message[]>(res => res.json())
-      .then(data => {
-        setIsLoading(false);
-        setMessages(data);
-      });
     if (!socket.current || socket.current.readyState === WebSocket.CLOSED) {
-      socket.current = new WebSocket('ws://localhost:4000/');
+      socket.current = new WebSocket(`ws://localhost:4000/`);
+      socket.current.onopen = () => {
+        if (role === 'manager') {
+          socket.current?.send(JSON.stringify({ chatId }));
+        }
+      };
       socket.current.onmessage = event => {
-        setMessages(prev => [...prev, JSON.parse(event.data)]);
+        const msg = JSON.parse(event.data) as IMessage;
+        if ('text' in msg) setMessages(prev => [...prev, msg]);
       };
     }
     return () => {
       if (socket.current && socket.current.readyState === WebSocket.OPEN)
-        socket.current?.close();
+        socket.current.close();
     };
   }, []);
+
+  useEffect(() => {
+    setIsLoading(true);
+    fetch(`http://localhost:4000/messages/${chatId}`)
+      .then<IMessage[]>(res => {
+        setIsLoading(false);
+        return res.json();
+      })
+      .then(data => setMessages(data));
+  }, [chatId]);
 
   useEffect(() => {
     ref.current!.scrollTop = ref.current!.scrollHeight;
@@ -35,14 +44,18 @@ export function SupportChat({ role }: { role: Role }) {
 
   const sendMessage = useCallback(() => {
     if (value) {
-      const message: Omit<Message, 'id'> = {
+      if (role === 'user' || messages.length === 0) {
+        socket.current?.send(JSON.stringify({ chatId }));
+      }
+      const message: Omit<IMessage, 'id'> = {
         role,
         text: value,
+        chatId,
       };
       socket.current?.send(JSON.stringify(message));
       setValue('');
     }
-  }, [value, setValue, role]);
+  }, [value, role, messages.length, chatId]);
 
   useEffect(() => {
     const listener = (event: KeyboardEvent) => {
